@@ -23,6 +23,7 @@ import (
 	mssql "github.com/crossplane-contrib/provider-sql/apis/mssql/v1alpha1"
 	mysql "github.com/crossplane-contrib/provider-sql/apis/mysql/v1alpha1"
 	postgresql "github.com/crossplane-contrib/provider-sql/apis/postgresql/v1alpha1"
+	cassandra "github.com/crossplane-contrib/provider-sql/apis/cassandra/v1alpha1"
 )
 
 func init() {
@@ -31,6 +32,7 @@ func init() {
 		mssql.SchemeBuilder.AddToScheme,
 		mysql.SchemeBuilder.AddToScheme,
 		postgresql.SchemeBuilder.AddToScheme,
+		cassandra.SchemeBuilder.AddToScheme,
 	)
 }
 

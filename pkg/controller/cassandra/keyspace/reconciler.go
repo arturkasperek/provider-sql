@@ -45,6 +45,7 @@ const (
 	errNotKeyspace  = "managed resource is not a Keyspace custom resource"
 	errSelectKeyspace = "cannot select keyspace"
 	errCreateKeyspace = "cannot create keyspace"
+	errUpdateKeyspace = "cannot update keyspace"
 	errDropKeyspace   = "cannot drop keyspace"
 	maxConcurrency  = 5
 	defaultStrategy = "SimpleStrategy"
@@ -189,6 +190,34 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 }
 
 func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.ExternalUpdate, error) {
+	cr, ok := mg.(*v1alpha1.Keyspace)
+	if !ok {
+		return managed.ExternalUpdate{}, errors.New(errNotKeyspace)
+	}
+
+	params := cr.Spec.ForProvider
+	strategy := defaultStrategy
+	if params.ReplicationClass != nil {
+		strategy = *params.ReplicationClass
+	}
+
+	replicationFactor := defaultReplicas
+	if params.ReplicationFactor != nil {
+		replicationFactor = *params.ReplicationFactor
+	}
+
+	durableWrites := true
+	if params.DurableWrites != nil {
+		durableWrites = *params.DurableWrites
+	}
+
+	query := "ALTER KEYSPACE " + cassandra.QuoteIdentifier(meta.GetExternalName(cr)) +
+		" WITH replication = {'class': '" + strategy + "', 'replication_factor': " + strconv.Itoa(replicationFactor) + "} AND durable_writes = " + strconv.FormatBool(durableWrites)
+
+	if err := c.db.Exec(ctx, query); err != nil {
+		return managed.ExternalUpdate{}, errors.New(errUpdateKeyspace + ": " + err.Error())
+	}
+
 	return managed.ExternalUpdate{}, nil
 }
 

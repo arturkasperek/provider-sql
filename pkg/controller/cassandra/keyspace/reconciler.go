@@ -118,21 +118,38 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		return managed.ExternalObservation{}, errors.New(errNotKeyspace)
 	}
 
+	// Separate query to check if the resource exists
+	existsQuery := "SELECT keyspace_name FROM system_schema.keyspaces WHERE keyspace_name = ?"
+	var keyspaceName string
+	existsIter, err := c.db.Query(ctx, existsQuery, meta.GetExternalName(cr))
+	if err != nil {
+		return managed.ExternalObservation{}, errors.Wrap(err, "failed to check keyspace existence")
+	}
+	defer existsIter.Close()
+
+	if !existsIter.Scan(&keyspaceName) {
+		// Keyspace does not exist
+		return managed.ExternalObservation{
+			ResourceExists: false,
+			ResourceUpToDate: false,
+		}, nil
+	}
+
 	observed := &v1alpha1.KeyspaceParameters{
 		ReplicationClass:   new(string),
 		ReplicationFactor:  new(int),
 		DurableWrites:      new(bool),
 	}
 
-	query := "SELECT replication, durable_writes FROM system_schema.keyspaces WHERE keyspace_name = ?"
-	iter, err := c.db.Query(ctx, query, meta.GetExternalName(cr))
+	detailsQuery := "SELECT replication, durable_writes FROM system_schema.keyspaces WHERE keyspace_name = ?"
+	detailsIter, err := c.db.Query(ctx, detailsQuery, meta.GetExternalName(cr))
 	if err != nil {
 		return managed.ExternalObservation{}, errors.Wrap(err, errSelectKeyspace)
 	}
-	defer iter.Close()
+	defer detailsIter.Close()
 
 	replicationMap := map[string]string{}
-	if !iter.Scan(&replicationMap, &observed.DurableWrites) {
+	if !detailsIter.Scan(&replicationMap, &observed.DurableWrites) {
 		return managed.ExternalObservation{}, errors.New("failed to scan keyspace attributes")
 	}
 

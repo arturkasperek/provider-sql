@@ -25,7 +25,7 @@ import (
 
 // Package type metadata.
 const (
-	Group   = "cassandra.sql.crossplane.io"
+	Group   = "cassandra.cql.crossplane.io"
 	Version = "v1alpha1"
 )
 
@@ -58,12 +58,12 @@ var (
 	ProviderConfigUsageListGroupVersionKind = SchemeGroupVersion.WithKind(ProviderConfigUsageListKind)
 )
 
-// Database type metadata.
+// Keyspace type metadata.
 var (
-	DatabaseKind             = reflect.TypeOf(Database{}).Name()
-	DatabaseGroupKind        = schema.GroupKind{Group: Group, Kind: DatabaseKind}.String()
-	DatabaseKindAPIVersion   = DatabaseKind + "." + SchemeGroupVersion.String()
-	DatabaseGroupVersionKind = SchemeGroupVersion.WithKind(DatabaseKind)
+	KeyspaceKind             = reflect.TypeOf(Keyspace{}).Name()
+	KeyspaceGroupKind        = schema.GroupKind{Group: Group, Kind: KeyspaceKind}.String()
+	KeyspaceKindAPIVersion   = KeyspaceKind + "." + SchemeGroupVersion.String()
+	KeyspaceGroupVersionKind = SchemeGroupVersion.WithKind(KeyspaceKind)
 )
 
 // Role type metadata.
@@ -85,7 +85,7 @@ var (
 func init() {
 	SchemeBuilder.Register(&ProviderConfig{}, &ProviderConfigList{})
 	SchemeBuilder.Register(&ProviderConfigUsage{}, &ProviderConfigUsageList{})
-	SchemeBuilder.Register(&Database{}, &DatabaseList{})
+	SchemeBuilder.Register(&Keyspace{}, &KeyspaceList{})
 	SchemeBuilder.Register(&Role{}, &RoleList{})
 	SchemeBuilder.Register(&Grant{}, &GrantList{})
 }

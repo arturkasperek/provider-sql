@@ -4,9 +4,9 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.14.0
-  name: providerconfigusages.cassandra.sql.crossplane.io
+  name: providerconfigusages.cassandra.cql.crossplane.io
 spec:
-  group: cassandra.sql.crossplane.io
+  group: cassandra.cql.crossplane.io
   names:
     categories:
     - crossplane

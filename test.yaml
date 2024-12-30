@@ -1,5 +1,5 @@
 ---
-apiVersion: cassandra.sql.crossplane.io/v1alpha1
+apiVersion: cassandra.cql.crossplane.io/v1alpha1
 kind: ProviderConfig
 metadata:
   name: default
@@ -35,8 +35,8 @@ stringData:
   endpoint: localhost
   port: "5432"
 ---
-apiVersion: cassandra.sql.crossplane.io/v1alpha1
-kind: Database
+apiVersion: cassandra.cql.crossplane.io/v1alpha1
+kind: Keyspace
 metadata:
   name: something
 spec:

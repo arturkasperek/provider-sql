@@ -14,24 +14,25 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package database
+package keyspace
 
 import (
 	"context"
-	"github.com/pkg/errors"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
+
+	"github.com/crossplane-contrib/provider-sql/apis/cassandra/v1alpha1"
+	"github.com/crossplane-contrib/provider-sql/pkg/clients/cassandra"
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	xpcontroller "github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane-contrib/provider-sql/apis/cassandra/v1alpha1"
-	"github.com/crossplane-contrib/provider-sql/pkg/clients/cassandra"
+	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 )
 
 const (
@@ -39,20 +40,20 @@ const (
 	errGetPC        = "cannot get ProviderConfig"
 	errNoSecretRef  = "ProviderConfig does not reference a credentials Secret"
 	errGetSecret    = "cannot get credentials Secret"
-	errNotDatabase  = "managed resource is not a Database custom resource"
+	errNotKeyspace  = "managed resource is not a Keyspace custom resource"
 	errSelectDB     = "cannot select keyspace"
 	errCreateDB     = "cannot create keyspace"
 	errDropDB       = "cannot drop keyspace"
 	maxConcurrency  = 5
 )
 
-// Setup adds a controller that reconciles Database managed resources.
+// Setup adds a controller that reconciles Keyspace managed resources.
 func Setup(mgr ctrl.Manager, o xpcontroller.Options) error {
-	name := managed.ControllerName(v1alpha1.DatabaseGroupKind)
+	name := managed.ControllerName(v1alpha1.KeyspaceGroupKind)
 
 	t := resource.NewProviderConfigUsageTracker(mgr.GetClient(), &v1alpha1.ProviderConfigUsage{})
 	r := managed.NewReconciler(mgr,
-		resource.ManagedKind(v1alpha1.DatabaseGroupVersionKind),
+		resource.ManagedKind(v1alpha1.KeyspaceGroupVersionKind),
 		managed.WithExternalConnecter(&connector{kube: mgr.GetClient(), usage: t, newClient: cassandra.New}),
 		managed.WithLogger(o.Logger.WithValues("controller", name)),
 		managed.WithPollInterval(o.PollInterval),
@@ -60,7 +61,7 @@ func Setup(mgr ctrl.Manager, o xpcontroller.Options) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
-		For(&v1alpha1.Database{}).
+		For(&v1alpha1.Keyspace{}).
 		WithOptions(controller.Options{
 			MaxConcurrentReconciles: maxConcurrency,
 		}).
@@ -74,9 +75,9 @@ type connector struct {
 }
 
 func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) {
-	cr, ok := mg.(*v1alpha1.Database)
+	cr, ok := mg.(*v1alpha1.Keyspace)
 	if !ok {
-		return nil, errors.New(errNotDatabase)
+		return nil, errors.New(errNotKeyspace)
 	}
 
 	if err := c.usage.Track(ctx, mg); err != nil {
@@ -107,9 +108,9 @@ type external struct {
 }
 
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
-	cr, ok := mg.(*v1alpha1.Database)
+	cr, ok := mg.(*v1alpha1.Keyspace)
 	if !ok {
-		return managed.ExternalObservation{}, errors.New(errNotDatabase)
+		return managed.ExternalObservation{}, errors.New(errNotKeyspace)
 	}
 
 	iter, err := c.db.Query(ctx, "SELECT keyspace_name FROM system_schema.keyspaces WHERE keyspace_name = ?", meta.GetExternalName(cr))
@@ -132,9 +133,9 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 }
 
 func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.ExternalCreation, error) {
-	cr, ok := mg.(*v1alpha1.Database)
+	cr, ok := mg.(*v1alpha1.Keyspace)
 	if !ok {
-		return managed.ExternalCreation{}, errors.New(errNotDatabase)
+		return managed.ExternalCreation{}, errors.New(errNotKeyspace)
 	}
 
 	query := "CREATE KEYSPACE IF NOT EXISTS " + cassandra.QuoteIdentifier(meta.GetExternalName(cr)) + " WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1}"
@@ -150,9 +151,9 @@ func (c *external) Update(_ context.Context, _ resource.Managed) (managed.Extern
 }
 
 func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
-	cr, ok := mg.(*v1alpha1.Database)
+	cr, ok := mg.(*v1alpha1.Keyspace)
 	if !ok {
-		return errors.New(errNotDatabase)
+		return errors.New(errNotKeyspace)
 	}
 
 	query := "DROP KEYSPACE IF EXISTS " + cassandra.QuoteIdentifier(meta.GetExternalName(cr))

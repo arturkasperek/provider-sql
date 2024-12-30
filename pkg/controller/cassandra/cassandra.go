@@ -22,7 +22,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 
 	"github.com/crossplane-contrib/provider-sql/pkg/controller/cassandra/config"
-	"github.com/crossplane-contrib/provider-sql/pkg/controller/cassandra/database"
+	"github.com/crossplane-contrib/provider-sql/pkg/controller/cassandra/keyspace"
 )
 
 // Setup creates all cassandra controllers with the supplied logger and adds
@@ -30,7 +30,7 @@ import (
 func Setup(mgr ctrl.Manager, o controller.Options) error {
 	for _, setup := range []func(ctrl.Manager, controller.Options) error{
 		config.Setup,
-		database.Setup,
+		keyspace.Setup,
 	} {
 		if err := setup(mgr, o); err != nil {
 			return err

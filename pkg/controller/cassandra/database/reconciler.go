@@ -112,9 +112,9 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		return managed.ExternalObservation{}, errors.New(errNotDatabase)
 	}
 
-	iter := c.db.Query(ctx, "SELECT keyspace_name FROM system_schema.keyspaces WHERE keyspace_name = ?", meta.GetExternalName(cr))
-	if iter == nil {
-		return managed.ExternalObservation{}, errors.New("failed to query keyspaces")
+	iter, err := c.db.Query(ctx, "SELECT keyspace_name FROM system_schema.keyspaces WHERE keyspace_name = ?", meta.GetExternalName(cr))
+	if err != nil {
+		return managed.ExternalObservation{}, errors.Wrap(err, "failed to query keyspaces")
 	}
 	defer iter.Close()
 
@@ -138,8 +138,11 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	}
 
 	query := "CREATE KEYSPACE IF NOT EXISTS " + cassandra.QuoteIdentifier(meta.GetExternalName(cr)) + " WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1}"
-	err := c.db.Exec(ctx, query)
-	return managed.ExternalCreation{}, errors.Wrap(err, errCreateDB)
+	if err := c.db.Exec(ctx, query); err != nil {
+		return managed.ExternalCreation{}, errors.New(errCreateDB + ": " + err.Error())
+	}
+
+	return managed.ExternalCreation{}, nil
 }
 
 func (c *external) Update(_ context.Context, _ resource.Managed) (managed.ExternalUpdate, error) {
@@ -153,6 +156,9 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
 	}
 
 	query := "DROP KEYSPACE IF EXISTS " + cassandra.QuoteIdentifier(meta.GetExternalName(cr))
-	err := c.db.Exec(ctx, query)
-	return errors.Wrap(err, errDropDB)
+	if err := c.db.Exec(ctx, query); err != nil {
+		return errors.New(errDropDB + ": " + err.Error())
+	}
+
+	return nil
 }

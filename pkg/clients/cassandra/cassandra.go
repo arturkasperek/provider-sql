@@ -18,6 +18,7 @@ package cassandra
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"strings"
 
@@ -65,14 +66,32 @@ func New(creds map[string][]byte, keyspace string) *CassandraDB {
 	}
 }
 
-// Exec executes a CQL statement.
+// Exec executes a CQL statement and returns an error if the session is not available or the execution fails.
 func (c *CassandraDB) Exec(ctx context.Context, query string, args ...interface{}) error {
-	return c.session.Query(query, args...).WithContext(ctx).Exec()
+	if c.session == nil {
+		return errors.New("Cassandra session is not initialized")
+	}
+
+	err := c.session.Query(query, args...).WithContext(ctx).Exec()
+	if err != nil {
+		return errors.New("failed to execute query: " + err.Error())
+	}
+
+	return nil
 }
 
-// Query performs a query and returns an iterator for the results.
-func (c *CassandraDB) Query(ctx context.Context, query string, args ...interface{}) *gocql.Iter {
-	return c.session.Query(query, args...).WithContext(ctx).Iter()
+// Query performs a query and returns an iterator for the results or an error if the session is not available.
+func (c *CassandraDB) Query(ctx context.Context, query string, args ...interface{}) (*gocql.Iter, error) {
+	if c.session == nil {
+		return nil, errors.New("cassandra session is not initialized")
+	}
+
+	iter := c.session.Query(query, args...).WithContext(ctx).Iter()
+	if iter == nil {
+		return nil, errors.New("failed to execute query or no iterator returned")
+	}
+
+	return iter, nil
 }
 
 // Close closes the Cassandra session.
@@ -104,5 +123,5 @@ func parsePort(port string) int {
 // QuoteIdentifier safely quotes an identifier to prevent SQL injection.
 // Cassandra uses double quotes to delimit identifiers.
 func QuoteIdentifier(id string) string {
-    return `"` + strings.ReplaceAll(id, `"`, `""`) + `"`
+	return `"` + strings.ReplaceAll(id, `"`, `""`) + `"`
 }

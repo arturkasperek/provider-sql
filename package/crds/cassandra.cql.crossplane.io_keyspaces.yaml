@@ -70,65 +70,18 @@ spec:
               forProvider:
                 description: KeyspaceParameters are the configurable fields of a Keyspace.
                 properties:
-                  allowConnections:
-                    description: |-
-                      If false then no one can connect to this keyspace. The default is true,
-                      allowing connections (except as restricted by other mechanisms, such as
-                      GRANT/REVOKE CONNECT).
+                  durableWrites:
+                    description: Decided if turn on durable writes
                     type: boolean
-                  connectionLimit:
-                    description: |-
-                      How many concurrent connections can be made to this keyspace. -1 (the
-                      default) means no limit.
+                  replicationClass:
+                    description: ReplicationClass used for keyspace
+                    enum:
+                    - SimpleStrategy
+                    - NetworkTopologyStrategy
+                    type: string
+                  replicationFactor:
+                    description: ReplicationFactor used for keyspace
                     type: integer
-                  encoding:
-                    description: |-
-                      Character set encoding to use in the new keyspace. Specify a string
-                      constant (e.g., 'SQL_ASCII'), or an integer encoding number, or DEFAULT
-                      to use the default encoding (namely, the encoding of the template
-                      keyspace). The character sets supported by the Cassandra server are
-                      described in Section 23.3.1. See below for additional restrictions.
-                    type: string
-                  isTemplate:
-                    description: |-
-                      If true, then this keyspace can be cloned by any user with CREATEDB
-                      privileges; if false (the default), then only superusers or the owner of
-                      the keyspace can clone it.
-                    type: boolean
-                  lcCType:
-                    description: |-
-                      Character classification (LC_CTYPE) to use in the new keyspace. This
-                      affects the categorization of characters, e.g. lower, upper and digit.
-                      The default is to use the character classification of the template
-                      keyspace. See below for additional restrictions.
-                    type: string
-                  lcCollate:
-                    description: |-
-                      Collation order (LC_COLLATE) to use in the new keyspace. This affects the
-                      sort order applied to strings, e.g. in queries with ORDER BY, as well as
-                      the order used in indexes on text columns. The default is to use the
-                      collation order of the template keyspace. See below for additional
-                      restrictions.
-                    type: string
-                  owner:
-                    description: |-
-                      The role name of the user who will own the new keyspace, or DEFAULT to
-                      use the default (namely, the user executing the command). To create a
-                      keyspace owned by another role, you must be a direct or indirect member
-                      of that role, or be a superuser.
-                    type: string
-                  tablespace:
-                    description: |-
-                      The name of the tablespace that will be associated with the new keyspace,
-                      or DEFAULT to use the template keyspace's tablespace. This tablespace
-                      will be the default tablespace used for objects created in this keyspace.
-                      See CREATE TABLESPACE for more information.
-                    type: string
-                  template:
-                    description: |-
-                      The name of the template from which to create the new keyspace, or
-                      DEFAULT to use the default template (template1).
-                    type: string
                 type: object
               managementPolicies:
                 default:

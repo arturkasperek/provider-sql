@@ -18,6 +18,7 @@ package keyspace
 
 import (
 	"context"
+	"strconv"
 
 	"github.com/crossplane-contrib/provider-sql/apis/cassandra/v1alpha1"
 	"github.com/crossplane-contrib/provider-sql/pkg/clients/cassandra"
@@ -45,6 +46,8 @@ const (
 	errCreateDB     = "cannot create keyspace"
 	errDropDB       = "cannot drop keyspace"
 	maxConcurrency  = 5
+	defaultStrategy = "SimpleStrategy"
+	defaultReplicas = 1
 )
 
 // Setup adds a controller that reconciles Keyspace managed resources.
@@ -138,7 +141,25 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalCreation{}, errors.New(errNotKeyspace)
 	}
 
-	query := "CREATE KEYSPACE IF NOT EXISTS " + cassandra.QuoteIdentifier(meta.GetExternalName(cr)) + " WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1}"
+	params := cr.Spec.ForProvider
+	strategy := defaultStrategy
+	if params.ReplicationClass != nil {
+		strategy = *params.ReplicationClass
+	}
+
+	replicationFactor := defaultReplicas
+	if params.ReplicationFactor != nil {
+		replicationFactor = *params.ReplicationFactor
+	}
+
+	durableWrites := true
+	if params.DurableWrites != nil {
+		durableWrites = *params.DurableWrites
+	}
+
+	query := "CREATE KEYSPACE IF NOT EXISTS " + cassandra.QuoteIdentifier(meta.GetExternalName(cr)) +
+		" WITH replication = {'class': '" + strategy + "', 'replication_factor': " + strconv.Itoa(replicationFactor) + "} AND durable_writes = " + strconv.FormatBool(durableWrites)
+
 	if err := c.db.Exec(ctx, query); err != nil {
 		return managed.ExternalCreation{}, errors.New(errCreateDB + ": " + err.Error())
 	}

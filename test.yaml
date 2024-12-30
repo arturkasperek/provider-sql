@@ -38,6 +38,6 @@ stringData:
 apiVersion: cassandra.cql.crossplane.io/v1alpha1
 kind: Keyspace
 metadata:
-  name: something
+  name: something 
 spec:
   forProvider: {}

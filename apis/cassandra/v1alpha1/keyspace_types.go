@@ -24,55 +24,18 @@ import (
 
 // KeyspaceParameters are the configurable fields of a Keyspace.
 type KeyspaceParameters struct {
-	// The role name of the user who will own the new keyspace, or DEFAULT to
-	// use the default (namely, the user executing the command). To create a
-	// keyspace owned by another role, you must be a direct or indirect member
-	// of that role, or be a superuser.
-	Owner *string `json:"owner,omitempty"`
+	// ReplicationClass used for keyspace 
+	// +kubebuilder:validation:Enum=SimpleStrategy;NetworkTopologyStrategy
+	// +optional
+	ReplicationClass *string `json:"replicationClass,omitempty"`
 
-	// The name of the template from which to create the new keyspace, or
-	// DEFAULT to use the default template (template1).
-	Template *string `json:"template,omitempty"`
+	// ReplicationFactor used for keyspace 
+	// +optional
+	ReplicationFactor *int `json:"replicationFactor,omitempty"`
 
-	// Character set encoding to use in the new keyspace. Specify a string
-	// constant (e.g., 'SQL_ASCII'), or an integer encoding number, or DEFAULT
-	// to use the default encoding (namely, the encoding of the template
-	// keyspace). The character sets supported by the Cassandra server are
-	// described in Section 23.3.1. See below for additional restrictions.
-	Encoding *string `json:"encoding,omitempty"`
-
-	// Collation order (LC_COLLATE) to use in the new keyspace. This affects the
-	// sort order applied to strings, e.g. in queries with ORDER BY, as well as
-	// the order used in indexes on text columns. The default is to use the
-	// collation order of the template keyspace. See below for additional
-	// restrictions.
-	LCCollate *string `json:"lcCollate,omitempty"`
-
-	// Character classification (LC_CTYPE) to use in the new keyspace. This
-	// affects the categorization of characters, e.g. lower, upper and digit.
-	// The default is to use the character classification of the template
-	// keyspace. See below for additional restrictions.
-	LCCType *string `json:"lcCType,omitempty"`
-
-	// The name of the tablespace that will be associated with the new keyspace,
-	// or DEFAULT to use the template keyspace's tablespace. This tablespace
-	// will be the default tablespace used for objects created in this keyspace.
-	// See CREATE TABLESPACE for more information.
-	Tablespace *string `json:"tablespace,omitempty"`
-
-	// If false then no one can connect to this keyspace. The default is true,
-	// allowing connections (except as restricted by other mechanisms, such as
-	// GRANT/REVOKE CONNECT).
-	AllowConnections *bool `json:"allowConnections,omitempty"`
-
-	// How many concurrent connections can be made to this keyspace. -1 (the
-	// default) means no limit.
-	ConnectionLimit *int `json:"connectionLimit,omitempty"`
-
-	// If true, then this keyspace can be cloned by any user with CREATEDB
-	// privileges; if false (the default), then only superusers or the owner of
-	// the keyspace can clone it.
-	IsTemplate *bool `json:"isTemplate,omitempty"`
+	// Decided if turn on durable writes
+	// +optional
+	DurableWrites *bool `json:"durableWrites,omitempty"`
 }
 
 // A KeyspaceSpec defines the desired state of a Keyspace.

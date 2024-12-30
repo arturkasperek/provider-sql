@@ -26,16 +26,6 @@ import (
 type ProviderConfigSpec struct {
 	// Credentials required to authenticate to this provider.
 	Credentials ProviderCredentials `json:"credentials"`
-	// Defines the database name used to set up a connection to the provided
-	// Cassandra instance. Same as PGDATABASE environment variable.
-	// +kubebuilder:default="postgres"
-	DefaultDatabase string `json:"defaultDatabase,omitempty"`
-	// Defines the SSL mode used to set up a connection to the provided
-	// cassandra instance
-	// +kubebuilder:validation:Enum=disable;require;verify-ca;verify-full
-	// +kubebuilder:default=verify-full
-	// +kubebuilder:validation:Optional
-	SSLMode *string `json:"sslMode,omitempty"`
 }
 
 const (

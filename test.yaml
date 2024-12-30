@@ -4,7 +4,6 @@ kind: ProviderConfig
 metadata:
   name: default
 spec:
-  sslMode: disable
   credentials:
     source: CassandraConnectionSecret
     connectionSecretRef:
@@ -30,10 +29,10 @@ kind: Secret
 metadata:
   name: db-conn
 stringData:
-  username: postgres
-  password: pass
+  username: cassandra
+  password: cassandra
   endpoint: localhost
-  port: "5432"
+  port: "9042"
 ---
 apiVersion: cassandra.cql.crossplane.io/v1alpha1
 kind: Keyspace

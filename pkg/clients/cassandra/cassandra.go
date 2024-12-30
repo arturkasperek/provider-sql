@@ -18,6 +18,7 @@ package cassandra
 
 import (
 	"context"
+	"fmt"
 	"errors"
 	"strconv"
 	"strings"
@@ -40,12 +41,16 @@ type CassandraDB struct {
 
 // New initializes a new Cassandra client.
 func New(creds map[string][]byte, keyspace string) *CassandraDB {
-	cluster := gocql.NewCluster("localhost:9042")
-
+	endpoint := string(creds[xpv1.ResourceCredentialsSecretEndpointKey])
 	port := string(creds[xpv1.ResourceCredentialsSecretPortKey])
+
+	// Combine endpoint and port
+	host := endpoint
 	if port != "" {
-		cluster.Port = parsePort(port)
+		host = fmt.Sprintf("%s:%s", endpoint, port)
 	}
+
+	cluster := gocql.NewCluster(host)
 
 	cluster.Authenticator = gocql.PasswordAuthenticator{
 		Username: string(creds[xpv1.ResourceCredentialsSecretUserKey]),
@@ -61,10 +66,11 @@ func New(creds map[string][]byte, keyspace string) *CassandraDB {
 
 	return &CassandraDB{
 		session:  session,
-		endpoint: string(creds[xpv1.ResourceCredentialsSecretEndpointKey]),
+		endpoint: endpoint,
 		port:     port,
 	}
 }
+
 
 // Exec executes a CQL statement and returns an error if the session is not available or the execution fails.
 func (c *CassandraDB) Exec(ctx context.Context, query string, args ...interface{}) error {

@@ -25,12 +25,9 @@ spec:
     - jsonPath: .status.conditions[?(@.type=='Synced')].status
       name: SYNCED
       type: string
-    - jsonPath: .spec.forProvider.connectionLimit
-      name: CONN LIMIT
-      type: integer
-    - jsonPath: .status.atProvider.privilegesAsClauses
-      name: PRIVILEGES
-      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: AGE
+      type: date
     name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -74,73 +71,12 @@ spec:
                 description: RoleParameters define the desired state of a Cassandra
                   role instance.
                 properties:
-                  configurationParameters:
-                    description: |-
-                      ConfigurationParameters to be applied to the role. If specified, any other configuration parameters set on the
-                      role in the database will be reset.
-
-
-                      See https://www.postgresql.org/docs/current/runtime-config-client.html for some available configuration parameters.
-                    items:
-                      description: RoleConfigurationParameter is a role configuration
-                        parameter.
-                      properties:
-                        name:
-                          type: string
-                        value:
-                          type: string
-                      type: object
-                    type: array
-                  connectionLimit:
-                    description: ConnectionLimit to be applied to the role.
-                    format: int32
-                    type: integer
-                  passwordSecretRef:
-                    description: |-
-                      PasswordSecretRef references the secret that contains the password used
-                      for this role. If no reference is given, a password will be auto-generated.
-                    properties:
-                      key:
-                        description: The key to select.
-                        type: string
-                      name:
-                        description: Name of the secret.
-                        type: string
-                      namespace:
-                        description: Namespace of the secret.
-                        type: string
-                    required:
-                    - key
-                    - name
-                    - namespace
-                    type: object
                   privileges:
                     description: Privileges to be granted.
                     properties:
-                      bypassRls:
-                        description: BypassRls grants BYPASSRLS when true, allowing
-                          the role to bypass row-level security policies.
-                        type: boolean
-                      createDb:
-                        description: CreateDb grants CREATEDB when true, allowing
-                          the role to create databases.
-                        type: boolean
-                      createRole:
-                        description: CreateRole grants CREATEROLE when true, allowing
-                          this role to create other roles.
-                        type: boolean
-                      inherit:
-                        description: |-
-                          Inherit grants INHERIT when true, allowing the role to inherit permissions
-                          from other roles it is a member of.
-                        type: boolean
                       login:
                         description: Login grants LOGIN when true, allowing the role
                           to login to the server.
-                        type: boolean
-                      replication:
-                        description: Replication grants REPLICATION when true, allowing
-                          the role to connect in replication mode.
                         type: boolean
                       superUser:
                         description: SuperUser grants SUPERUSER privilege when true.
@@ -317,31 +253,6 @@ spec:
           status:
             description: A RoleStatus represents the observed state of a Role.
             properties:
-              atProvider:
-                description: A RoleObservation represents the observed state of a
-                  Cassandra role.
-                properties:
-                  configurationParameters:
-                    description: ConfigurationParameters represents the applied configuration
-                      parameters for the Cassandra role.
-                    items:
-                      description: RoleConfigurationParameter is a role configuration
-                        parameter.
-                      properties:
-                        name:
-                          type: string
-                        value:
-                          type: string
-                      type: object
-                    type: array
-                  privilegesAsClauses:
-                    description: |-
-                      PrivilegesAsClauses represents the applied privileges state, taking into account
-                      any defaults applied by Cassandra, and expressed as a list of ROLE PRIVILEGE clauses.
-                    items:
-                      type: string
-                    type: array
-                type: object
               conditions:
                 description: Conditions of the resource.
                 items:

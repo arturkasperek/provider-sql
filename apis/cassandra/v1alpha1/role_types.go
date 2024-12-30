@@ -31,7 +31,6 @@ type RoleSpec struct {
 // A RoleStatus represents the observed state of a Role.
 type RoleStatus struct {
 	xpv1.ResourceStatus `json:",inline"`
-	AtProvider          RoleObservation `json:"atProvider,omitempty"`
 }
 
 // RolePrivilege is the Cassandra identifier to add or remove a permission
@@ -42,69 +41,16 @@ type RolePrivilege struct {
 	// +optional
 	SuperUser *bool `json:"superUser,omitempty"`
 
-	// CreateDb grants CREATEDB when true, allowing the role to create databases.
-	// +optional
-	CreateDb *bool `json:"createDb,omitempty"`
-
-	// CreateRole grants CREATEROLE when true, allowing this role to create other roles.
-	// +optional
-	CreateRole *bool `json:"createRole,omitempty"`
-
 	// Login grants LOGIN when true, allowing the role to login to the server.
 	// +optional
 	Login *bool `json:"login,omitempty"`
-
-	// Inherit grants INHERIT when true, allowing the role to inherit permissions
-	// from other roles it is a member of.
-	// +optional
-	Inherit *bool `json:"inherit,omitempty"`
-
-	// Replication grants REPLICATION when true, allowing the role to connect in replication mode.
-	// +optional
-	Replication *bool `json:"replication,omitempty"`
-
-	// BypassRls grants BYPASSRLS when true, allowing the role to bypass row-level security policies.
-	// +optional
-	BypassRls *bool `json:"bypassRls,omitempty"`
 }
 
 // RoleParameters define the desired state of a Cassandra role instance.
 type RoleParameters struct {
-	// ConnectionLimit to be applied to the role.
-	// +kubebuilder:validation:Min=-1
-	// +optional
-	ConnectionLimit *int32 `json:"connectionLimit,omitempty"`
-
 	// Privileges to be granted.
 	// +optional
 	Privileges RolePrivilege `json:"privileges,omitempty"`
-
-	// PasswordSecretRef references the secret that contains the password used
-	// for this role. If no reference is given, a password will be auto-generated.
-	// +optional
-	PasswordSecretRef *xpv1.SecretKeySelector `json:"passwordSecretRef,omitempty"`
-
-	// ConfigurationParameters to be applied to the role. If specified, any other configuration parameters set on the
-	// role in the database will be reset.
-	//
-	// See https://www.postgresql.org/docs/current/runtime-config-client.html for some available configuration parameters.
-	// +optional
-	ConfigurationParameters *[]RoleConfigurationParameter `json:"configurationParameters,omitempty"`
-}
-
-// RoleConfigurationParameter is a role configuration parameter.
-type RoleConfigurationParameter struct {
-	Name  string `json:"name,omitempty"`
-	Value string `json:"value,omitempty"`
-}
-
-// A RoleObservation represents the observed state of a Cassandra role.
-type RoleObservation struct {
-	// PrivilegesAsClauses represents the applied privileges state, taking into account
-	// any defaults applied by Cassandra, and expressed as a list of ROLE PRIVILEGE clauses.
-	PrivilegesAsClauses []string `json:"privilegesAsClauses,omitempty"`
-	// ConfigurationParameters represents the applied configuration parameters for the Cassandra role.
-	ConfigurationParameters *[]RoleConfigurationParameter `json:"configurationParameters,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -113,8 +59,7 @@ type RoleObservation struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
 // +kubebuilder:printcolumn:name="SYNCED",type="string",JSONPath=".status.conditions[?(@.type=='Synced')].status"
-// +kubebuilder:printcolumn:name="CONN LIMIT",type="integer",JSONPath=".spec.forProvider.connectionLimit"
-// +kubebuilder:printcolumn:name="PRIVILEGES",type="string",JSONPath=".status.atProvider.privilegesAsClauses"
+// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:scope=Cluster,categories={crossplane,managed,sql}
 type Role struct {
 	metav1.TypeMeta   `json:",inline"`

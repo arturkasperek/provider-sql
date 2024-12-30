@@ -1,5 +1,5 @@
 /*
-Copyright 2021 The Crossplane Authors.
+Copyright 2020 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package keyspace
 
 import (
 	"context"
+	"strings"
 	"strconv"
 
 	"github.com/crossplane-contrib/provider-sql/apis/cassandra/v1alpha1"
@@ -42,9 +43,9 @@ const (
 	errNoSecretRef  = "ProviderConfig does not reference a credentials Secret"
 	errGetSecret    = "cannot get credentials Secret"
 	errNotKeyspace  = "managed resource is not a Keyspace custom resource"
-	errSelectDB     = "cannot select keyspace"
-	errCreateDB     = "cannot create keyspace"
-	errDropDB       = "cannot drop keyspace"
+	errSelectKeyspace = "cannot select keyspace"
+	errCreateKeyspace = "cannot create keyspace"
+	errDropKeyspace   = "cannot drop keyspace"
 	maxConcurrency  = 5
 	defaultStrategy = "SimpleStrategy"
 	defaultReplicas = 1
@@ -116,23 +117,43 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		return managed.ExternalObservation{}, errors.New(errNotKeyspace)
 	}
 
-	iter, err := c.db.Query(ctx, "SELECT keyspace_name FROM system_schema.keyspaces WHERE keyspace_name = ?", meta.GetExternalName(cr))
+	observed := &v1alpha1.KeyspaceParameters{
+		ReplicationClass:   new(string),
+		ReplicationFactor:  new(int),
+		DurableWrites:      new(bool),
+	}
+
+	query := "SELECT replication, durable_writes FROM system_schema.keyspaces WHERE keyspace_name = ?"
+	iter, err := c.db.Query(ctx, query, meta.GetExternalName(cr))
 	if err != nil {
-		return managed.ExternalObservation{}, errors.Wrap(err, "failed to query keyspaces")
+		return managed.ExternalObservation{}, errors.Wrap(err, errSelectKeyspace)
 	}
 	defer iter.Close()
 
-	exists := iter.NumRows() > 0
-	if exists {
-		cr.SetConditions(xpv1.Available())
-		return managed.ExternalObservation{
-			ResourceExists:          true,
-			ResourceLateInitialized: false,
-			ResourceUpToDate:        true,
-		}, nil
+	replicationMap := map[string]string{}
+	if !iter.Scan(&replicationMap, &observed.DurableWrites) {
+		return managed.ExternalObservation{}, errors.New("failed to scan keyspace attributes")
 	}
 
-	return managed.ExternalObservation{ResourceExists: false}, nil
+	if rc, ok := replicationMap["class"]; ok {
+		// Remove Cassandra prefix if present.
+		if strings.HasPrefix(rc, "org.apache.cassandra.locator.") {
+			rc = strings.TrimPrefix(rc, "org.apache.cassandra.locator.")
+		}
+		*observed.ReplicationClass = rc
+	}
+	if rf, ok := replicationMap["replication_factor"]; ok {
+		rfInt, _ := strconv.Atoi(rf)
+		*observed.ReplicationFactor = rfInt
+	}
+
+	cr.SetConditions(xpv1.Available())
+
+	return managed.ExternalObservation{
+		ResourceExists:          true,
+		ResourceLateInitialized: lateInit(observed, &cr.Spec.ForProvider),
+		ResourceUpToDate:        upToDate(observed, &cr.Spec.ForProvider),
+	}, nil
 }
 
 func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.ExternalCreation, error) {
@@ -161,13 +182,13 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 		" WITH replication = {'class': '" + strategy + "', 'replication_factor': " + strconv.Itoa(replicationFactor) + "} AND durable_writes = " + strconv.FormatBool(durableWrites)
 
 	if err := c.db.Exec(ctx, query); err != nil {
-		return managed.ExternalCreation{}, errors.New(errCreateDB + ": " + err.Error())
+		return managed.ExternalCreation{}, errors.New(errCreateKeyspace + ": " + err.Error())
 	}
 
 	return managed.ExternalCreation{}, nil
 }
 
-func (c *external) Update(_ context.Context, _ resource.Managed) (managed.ExternalUpdate, error) {
+func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.ExternalUpdate, error) {
 	return managed.ExternalUpdate{}, nil
 }
 
@@ -179,8 +200,40 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
 
 	query := "DROP KEYSPACE IF EXISTS " + cassandra.QuoteIdentifier(meta.GetExternalName(cr))
 	if err := c.db.Exec(ctx, query); err != nil {
-		return errors.New(errDropDB + ": " + err.Error())
+		return errors.New(errDropKeyspace + ": " + err.Error())
 	}
 
 	return nil
+}
+
+func upToDate(observed *v1alpha1.KeyspaceParameters, desired *v1alpha1.KeyspaceParameters) bool {
+	if observed.ReplicationClass == nil || desired.ReplicationClass == nil || *observed.ReplicationClass != *desired.ReplicationClass {
+		return false
+	}
+	if observed.ReplicationFactor == nil || desired.ReplicationFactor == nil || *observed.ReplicationFactor != *desired.ReplicationFactor {
+		return false
+	}
+	if observed.DurableWrites == nil || desired.DurableWrites == nil || *observed.DurableWrites != *desired.DurableWrites {
+		return false
+	}
+	return true
+}
+
+func lateInit(observed *v1alpha1.KeyspaceParameters, desired *v1alpha1.KeyspaceParameters) bool {
+	li := false
+
+	if desired.ReplicationClass == nil {
+		desired.ReplicationClass = observed.ReplicationClass
+		li = true
+	}
+	if desired.ReplicationFactor == nil {
+		desired.ReplicationFactor = observed.ReplicationFactor
+		li = true
+	}
+	if desired.DurableWrites == nil {
+		desired.DurableWrites = observed.DurableWrites
+		li = true
+	}
+
+	return li
 }

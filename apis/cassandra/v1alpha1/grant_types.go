@@ -29,7 +29,7 @@ type GrantSpec struct {
 }
 
 // GrantPrivilege represents a privilege to be granted
-// +kubebuilder:validation:Pattern:=^[A-Z]+$
+// +kubebuilder:validation:Enum=ALL_PERMISSIONS;ALTER;AUTHORIZE;CREATE;DESCRIBE;DROP;EXECUTE;MODIFY;SELECT
 type GrantPrivilege string
 
 // If Privileges are specified, we should have at least one
@@ -38,78 +38,14 @@ type GrantPrivilege string
 // +kubebuilder:validation:MinItems:=1
 type GrantPrivileges []GrantPrivilege
 
-// Some privileges are shorthands for multiple privileges. These translations
-// happen internally inside postgresql when making grants. When we query the
-// privileges back, we need to look for the expanded set.
-// https://www.postgresql.org/docs/15/ddl-priv.html
-var grantReplacements = map[GrantPrivilege]GrantPrivileges{
-	"ALL":            {"CREATE", "TEMPORARY", "CONNECT"},
-	"ALL PRIVILEGES": {"CREATE", "TEMPORARY", "CONNECT"},
-	"TEMP":           {"TEMPORARY"},
-}
-
-// ExpandPrivileges expands any shorthand privileges to their full equivalents.
-func (gp *GrantPrivileges) ExpandPrivileges() GrantPrivileges {
-	privilegeSet := make(map[GrantPrivilege]struct{})
-
-	// Replace any shorthand privileges with their full equivalents
-	for _, p := range *gp {
-		if _, ok := grantReplacements[p]; ok {
-			for _, rp := range grantReplacements[p] {
-				privilegeSet[rp] = struct{}{}
-			}
-		} else {
-			privilegeSet[p] = struct{}{}
-		}
-	}
-
-	privileges := make([]GrantPrivilege, 0, len(privilegeSet))
-	for p := range privilegeSet {
-		privileges = append(privileges, p)
-	}
-
-	return privileges
-}
-
-// ToStringSlice converts the slice of privileges to strings
-func (gp *GrantPrivileges) ToStringSlice() []string {
-	if gp == nil {
-		return []string{}
-	}
-	out := make([]string, len(*gp))
-	for i, v := range *gp {
-		out[i] = string(v)
-	}
-	return out
-}
-
-// GrantOption represents an OPTION that will be applied to a grant.
-// This modifies the behaviour of the grant depending on the type of
-// grant and option applied.
-type GrantOption string
-
-// The possible values for grant option type.
-const (
-	GrantOptionAdmin GrantOption = "ADMIN"
-	GrantOptionGrant GrantOption = "GRANT"
-)
-
 // GrantParameters define the desired state of a PostgreSQL grant instance.
 type GrantParameters struct {
 	// Privileges to be granted.
-	// See https://www.postgresql.org/docs/current/sql-grant.html for available privileges.
-	// +optional
-	Privileges GrantPrivileges `json:"privileges,omitempty"`
-
-	// WithOption allows an option to be set on the grant.
-	// See https://www.postgresql.org/docs/current/sql-grant.html for available
-	// options for each grant type, and the effects of applying the option.
-	// +kubebuilder:validation:Enum=ADMIN;GRANT
-	// +optional
-	WithOption *GrantOption `json:"withOption,omitempty"`
+	Privileges GrantPrivileges `json:"privileges"`
 
 	// Role this grant is for.
 	// +optional
+	// +crossplane:generate:reference:type=Role
 	Role *string `json:"role,omitempty"`
 
 	// RoleRef references the role object this grant is for.
@@ -122,33 +58,20 @@ type GrantParameters struct {
 	// +optional
 	RoleSelector *xpv1.Selector `json:"roleSelector,omitempty"`
 
-	// Database this grant is for.
+	// Keyspace this grant is for.
 	// +optional
-	Database *string `json:"database,omitempty"`
+	// +crossplane:generate:reference:type=Keyspace
+	Keyspace *string `json:"keyspace,omitempty"`
 
-	// DatabaseRef references the database object this grant it for.
+	// KeyspaceRef references the keyspace object this grant it for.
 	// +immutable
 	// +optional
-	DatabaseRef *xpv1.Reference `json:"databaseRef,omitempty"`
+	KeyspaceRef *xpv1.Reference `json:"keyspaceRef,omitempty"`
 
-	// DatabaseSelector selects a reference to a Database this grant is for.
+	// KeyspaceSelector selects a reference to a Keyspace this grant is for.
 	// +immutable
 	// +optional
-	DatabaseSelector *xpv1.Selector `json:"databaseSelector,omitempty"`
-
-	// MemberOf is the Role that this grant makes Role a member of.
-	// +optional
-	MemberOf *string `json:"memberOf,omitempty"`
-
-	// MemberOfRef references the Role that this grant makes Role a member of.
-	// +immutable
-	// +optional
-	MemberOfRef *xpv1.Reference `json:"memberOfRef,omitempty"`
-
-	// MemberOfSelector selects a reference to a Role that this grant makes Role a member of.
-	// +immutable
-	// +optional
-	MemberOfSelector *xpv1.Selector `json:"memberOfSelector,omitempty"`
+	KeyspaceSelector *xpv1.Selector `json:"keyspaceSelector,omitempty"`
 }
 
 // A GrantStatus represents the observed state of a Grant.
@@ -164,8 +87,7 @@ type GrantStatus struct {
 // +kubebuilder:printcolumn:name="SYNCED",type="string",JSONPath=".status.conditions[?(@.type=='Synced')].status"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:printcolumn:name="ROLE",type="string",JSONPath=".spec.forProvider.role"
-// +kubebuilder:printcolumn:name="MEMBER OF",type="string",JSONPath=".spec.forProvider.memberOf"
-// +kubebuilder:printcolumn:name="DATABASE",type="string",JSONPath=".spec.forProvider.database"
+// +kubebuilder:printcolumn:name="KEYSAPCE",type="string",JSONPath=".spec.forProvider.keyspace"
 // +kubebuilder:printcolumn:name="PRIVILEGES",type="string",JSONPath=".spec.forProvider.privileges"
 // +kubebuilder:resource:scope=Cluster,categories={crossplane,managed,sql}
 type Grant struct {

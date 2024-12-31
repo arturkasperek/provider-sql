@@ -24,6 +24,7 @@ import (
 	"github.com/crossplane-contrib/provider-sql/pkg/controller/cassandra/config"
 	"github.com/crossplane-contrib/provider-sql/pkg/controller/cassandra/keyspace"
 	"github.com/crossplane-contrib/provider-sql/pkg/controller/cassandra/role"
+	"github.com/crossplane-contrib/provider-sql/pkg/controller/cassandra/grant"
 )
 
 // Setup creates all cassandra controllers with the supplied logger and adds
@@ -33,6 +34,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		config.Setup,
 		keyspace.Setup,
 		role.Setup,
+		grant.Setup,
 	} {
 		if err := setup(mgr, o); err != nil {
 			return err

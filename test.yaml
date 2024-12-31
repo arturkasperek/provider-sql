@@ -53,3 +53,16 @@ spec:
   writeConnectionSecretToRef:
     name: example-role-pass
     namespace: default
+---
+apiVersion: cassandra.cql.crossplane.io/v1alpha1
+kind: Grant
+metadata:
+  name: example-grant
+spec:
+  forProvider:
+    privileges:
+      - SELECT
+    roleRef:
+      name: example-role
+    keyspaceRef:
+      name: something

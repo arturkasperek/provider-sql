@@ -92,11 +92,6 @@ func (in *GrantParameters) DeepCopyInto(out *GrantParameters) {
 		*out = make(GrantPrivileges, len(*in))
 		copy(*out, *in)
 	}
-	if in.WithOption != nil {
-		in, out := &in.WithOption, &out.WithOption
-		*out = new(GrantOption)
-		**out = **in
-	}
 	if in.Role != nil {
 		in, out := &in.Role, &out.Role
 		*out = new(string)
@@ -112,33 +107,18 @@ func (in *GrantParameters) DeepCopyInto(out *GrantParameters) {
 		*out = new(v1.Selector)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.Database != nil {
-		in, out := &in.Database, &out.Database
+	if in.Keyspace != nil {
+		in, out := &in.Keyspace, &out.Keyspace
 		*out = new(string)
 		**out = **in
 	}
-	if in.DatabaseRef != nil {
-		in, out := &in.DatabaseRef, &out.DatabaseRef
+	if in.KeyspaceRef != nil {
+		in, out := &in.KeyspaceRef, &out.KeyspaceRef
 		*out = new(v1.Reference)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.DatabaseSelector != nil {
-		in, out := &in.DatabaseSelector, &out.DatabaseSelector
-		*out = new(v1.Selector)
-		(*in).DeepCopyInto(*out)
-	}
-	if in.MemberOf != nil {
-		in, out := &in.MemberOf, &out.MemberOf
-		*out = new(string)
-		**out = **in
-	}
-	if in.MemberOfRef != nil {
-		in, out := &in.MemberOfRef, &out.MemberOfRef
-		*out = new(v1.Reference)
-		(*in).DeepCopyInto(*out)
-	}
-	if in.MemberOfSelector != nil {
-		in, out := &in.MemberOfSelector, &out.MemberOfSelector
+	if in.KeyspaceSelector != nil {
+		in, out := &in.KeyspaceSelector, &out.KeyspaceSelector
 		*out = new(v1.Selector)
 		(*in).DeepCopyInto(*out)
 	}

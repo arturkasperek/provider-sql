@@ -27,6 +27,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
+	"github.com/crossplane/crossplane-runtime/pkg/password"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -152,17 +153,27 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalCreation{}, errors.New(errNotRole)
 	}
 
+	pw, err := password.Generate()
+	if err != nil {
+		return managed.ExternalCreation{}, err
+	}
+
 	params := cr.Spec.ForProvider
-	query := fmt.Sprintf("CREATE ROLE IF NOT EXISTS %s WITH SUPERUSER = %t AND LOGIN = %t", 
+	query := fmt.Sprintf("CREATE ROLE IF NOT EXISTS %s WITH SUPERUSER = %t AND LOGIN = %t AND PASSWORD = '%s'", 
 		cassandra.QuoteIdentifier(meta.GetExternalName(cr)), 
 		params.Privileges.SuperUser != nil && *params.Privileges.SuperUser, 
-		params.Privileges.Login != nil && *params.Privileges.Login)
+		params.Privileges.Login != nil && *params.Privileges.Login, 
+		pw)
 
 	if err := c.db.Exec(ctx, query); err != nil {
 		return managed.ExternalCreation{}, errors.New(errCreateRole + ": " + err.Error())
 	}
 
-	return managed.ExternalCreation{}, nil
+	connectionDetails := c.db.GetConnectionDetails(meta.GetExternalName(cr), pw)
+
+	return managed.ExternalCreation{
+		ConnectionDetails: connectionDetails,
+	}, nil
 }
 
 func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.ExternalUpdate, error) {

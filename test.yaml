@@ -50,3 +50,6 @@ spec:
     privileges:
       superUser: true
       login: true
+  writeConnectionSecretToRef:
+    name: example-role-pass
+    namespace: default

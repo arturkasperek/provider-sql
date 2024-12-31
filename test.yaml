@@ -29,8 +29,8 @@ kind: Secret
 metadata:
   name: db-conn
 stringData:
-  username: cassandra
-  password: cassandra
+  username: admin
+  password: pass123
   endpoint: localhost
   port: "9042"
 ---
@@ -38,6 +38,13 @@ apiVersion: cassandra.cql.crossplane.io/v1alpha1
 kind: Keyspace
 metadata:
   name: something 
+spec:
+  forProvider: {}
+---
+apiVersion: cassandra.cql.crossplane.io/v1alpha1
+kind: Keyspace
+metadata:
+  name: otherone 
 spec:
   forProvider: {}
 ---
@@ -62,6 +69,7 @@ spec:
   forProvider:
     privileges:
       - SELECT
+      - MODIFY
     roleRef:
       name: example-role
     keyspaceRef:

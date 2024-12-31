@@ -18,9 +18,12 @@ package grant
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"github.com/crossplane-contrib/provider-sql/apis/cassandra/v1alpha1"
 	"github.com/crossplane-contrib/provider-sql/pkg/clients/cassandra"
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	xpcontroller "github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
@@ -39,6 +42,9 @@ const (
 	errNoSecretRef  = "ProviderConfig does not reference a credentials Secret"
 	errGetSecret    = "cannot get credentials Secret"
 	errNotGrant     = "managed resource is not a Grant custom resource"
+	errGrantCreate  = "cannot create grant"
+	errGrantDelete  = "cannot delete grant"
+	errGrantObserve = "cannot observe grant"
 	maxConcurrency  = 5
 )
 
@@ -103,17 +109,117 @@ type external struct {
 }
 
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
-	return managed.ExternalObservation{}, errors.New(errNotGrant)
+	cr, ok := mg.(*v1alpha1.Grant)
+	if !ok {
+		return managed.ExternalObservation{}, errors.New(errNotGrant)
+	}
+
+	role := *cr.Spec.ForProvider.Role
+	keyspace := *cr.Spec.ForProvider.Keyspace
+
+	query := fmt.Sprintf("SELECT permissions FROM system_auth.role_permissions WHERE role = ? AND resource = 'data/%s'", keyspace)
+	var permissions []string
+	iter, err := c.db.Query(ctx, query, role)
+	if err != nil {
+		return managed.ExternalObservation{}, errors.Wrap(err, errGrantObserve)
+	}
+	defer iter.Close()
+
+	observedPermissions := make(map[string]bool)
+	resourceExists := false
+	for iter.Scan(&permissions) {
+		for _, p := range permissions {
+			observedPermissions[p] = true
+		}
+	}
+
+	desiredPermissions := make(map[string]bool)
+	for _, p := range replaceUnderscoreWithSpace(cr.Spec.ForProvider.Privileges) {
+		desiredPermissions[p] = true
+	}
+
+	upToDate := true
+	for p := range desiredPermissions {
+		if !observedPermissions[p] {
+			upToDate = false
+			break
+		} else {
+			resourceExists = true
+		}
+	}
+
+	if resourceExists {
+		cr.SetConditions(xpv1.Available())
+	}
+
+	return managed.ExternalObservation{
+		ResourceExists:          resourceExists,
+		ResourceLateInitialized: false,
+		ResourceUpToDate:        upToDate,
+	}, nil
 }
 
 func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.ExternalCreation, error) {
-	return managed.ExternalCreation{}, errors.New(errNotGrant)
+	cr, ok := mg.(*v1alpha1.Grant)
+	if !ok {
+		return managed.ExternalCreation{}, errors.New(errNotGrant)
+	}
+
+	role := *cr.Spec.ForProvider.Role
+	keyspace := *cr.Spec.ForProvider.Keyspace
+	privileges := strings.Join(replaceUnderscoreWithSpace(cr.Spec.ForProvider.Privileges), ", ")
+
+	query := fmt.Sprintf("GRANT %s ON KEYSPACE %s TO %s", privileges, cassandra.QuoteIdentifier(keyspace), cassandra.QuoteIdentifier(role))
+
+	if err := c.db.Exec(ctx, query); err != nil {
+		return managed.ExternalCreation{}, errors.Wrap(err, errGrantCreate)
+	}
+
+	return managed.ExternalCreation{}, nil
 }
 
 func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.ExternalUpdate, error) {
+	cr, ok := mg.(*v1alpha1.Grant)
+	if !ok {
+		return managed.ExternalUpdate{}, errors.New(errNotGrant)
+	}
+
+	role := *cr.Spec.ForProvider.Role
+	keyspace := *cr.Spec.ForProvider.Keyspace
+	privileges := strings.Join(replaceUnderscoreWithSpace(cr.Spec.ForProvider.Privileges), ", ")
+
+	query := fmt.Sprintf("GRANT %s ON KEYSPACE %s TO %s", privileges, cassandra.QuoteIdentifier(keyspace), cassandra.QuoteIdentifier(role))
+
+	if err := c.db.Exec(ctx, query); err != nil {
+		return managed.ExternalUpdate{}, errors.Wrap(err, errGrantCreate)
+	}
+
 	return managed.ExternalUpdate{}, nil
 }
 
 func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
-	return errors.New(errNotGrant)
+	cr, ok := mg.(*v1alpha1.Grant)
+	if !ok {
+		return errors.New(errNotGrant)
+	}
+
+	role := *cr.Spec.ForProvider.Role
+	keyspace := *cr.Spec.ForProvider.Keyspace
+	privileges := strings.Join(replaceUnderscoreWithSpace(cr.Spec.ForProvider.Privileges), ", ")
+
+	query := fmt.Sprintf("REVOKE %s ON KEYSPACE %s FROM %s", privileges, cassandra.QuoteIdentifier(keyspace), cassandra.QuoteIdentifier(role))
+
+	if err := c.db.Exec(ctx, query); err != nil {
+		return errors.Wrap(err, errGrantDelete)
+	}
+
+	return nil
+}
+
+func replaceUnderscoreWithSpace(privileges []v1alpha1.GrantPrivilege) []string {
+	replaced := make([]string, len(privileges))
+	for i, privilege := range privileges {
+		replaced[i] = strings.ReplaceAll(string(privilege), "_", " ")
+	}
+	return replaced
 }

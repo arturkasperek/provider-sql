@@ -24,12 +24,12 @@ import (
 
 // KeyspaceParameters are the configurable fields of a Keyspace.
 type KeyspaceParameters struct {
-	// ReplicationClass used for keyspace 
+	// ReplicationClass used for keyspace
 	// +kubebuilder:validation:Enum=SimpleStrategy;NetworkTopologyStrategy
 	// +optional
 	ReplicationClass *string `json:"replicationClass,omitempty"`
 
-	// ReplicationFactor used for keyspace 
+	// ReplicationFactor used for keyspace
 	// +optional
 	ReplicationFactor *int `json:"replicationFactor,omitempty"`
 

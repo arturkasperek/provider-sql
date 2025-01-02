@@ -134,7 +134,8 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	}
 
 	desiredPermissions := make(map[string]bool)
-	for _, p := range replaceUnderscoreWithSpace(cr.Spec.ForProvider.Privileges) {
+	privileges := replaceUnderscoreWithSpace(cr.Spec.ForProvider.Privileges)
+	for _, p := range privileges {
 		desiredPermissions[p] = true
 	}
 
@@ -146,6 +147,19 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		} else {
 			resourceExists = true
 		}
+	}
+
+	atProviderPrivileges := cr.Status.AtProvider.Privileges
+
+	for _, p := range atProviderPrivileges {
+		if !desiredPermissions[p] {
+			// a case where we removed some permissions from CR spec
+			upToDate = false
+		}
+	}
+
+	if upToDate {
+		cr.Status.AtProvider.Privileges = privileges
 	}
 
 	if resourceExists {
@@ -170,6 +184,7 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	privileges := replaceUnderscoreWithSpace(cr.Spec.ForProvider.Privileges)
 
 	for _, privilege := range privileges {
+		// we make multiple grants to support yugabyteDB dialect that doesn't allow multiple grants like GRANT SELECT, MODIFY ...
 		query := fmt.Sprintf("GRANT %s ON KEYSPACE %s TO %s", privilege, cassandra.QuoteIdentifier(keyspace), cassandra.QuoteIdentifier(role))
 		if err := c.db.Exec(ctx, query); err != nil {
 			return managed.ExternalCreation{}, errors.Wrap(err, errGrantCreate)
@@ -188,13 +203,28 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 	role := *cr.Spec.ForProvider.Role
 	keyspace := *cr.Spec.ForProvider.Keyspace
 	privileges := replaceUnderscoreWithSpace(cr.Spec.ForProvider.Privileges)
+	desiredPermissions := make(map[string]bool)
+
 
 	for _, privilege := range privileges {
 		query := fmt.Sprintf("GRANT %s ON KEYSPACE %s TO %s", privilege, cassandra.QuoteIdentifier(keyspace), cassandra.QuoteIdentifier(role))
 		if err := c.db.Exec(ctx, query); err != nil {
 			return managed.ExternalUpdate{}, errors.Wrap(err, errGrantCreate)
 		}
+		desiredPermissions[privilege] = true
 	}
+
+	atProviderPrivileges := cr.Status.AtProvider.Privileges
+	for _, p := range atProviderPrivileges {
+		if !desiredPermissions[p] {
+			query := fmt.Sprintf("REVOKE %s ON KEYSPACE %s FROM %s", p, cassandra.QuoteIdentifier(keyspace), cassandra.QuoteIdentifier(role))
+			if err := c.db.Exec(ctx, query); err != nil {
+				return managed.ExternalUpdate{}, errors.Wrap(err, errGrantDelete)
+			}
+		}
+	}
+
+	cr.Status.AtProvider.Privileges = privileges
 
 	return managed.ExternalUpdate{}, nil
 }

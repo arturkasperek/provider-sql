@@ -18,8 +18,8 @@ package cassandra
 
 import (
 	"context"
-	"fmt"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -70,7 +70,6 @@ func New(creds map[string][]byte, keyspace string) *CassandraDB {
 		port:     port,
 	}
 }
-
 
 // Exec executes a CQL statement and returns an error if the session is not available or the execution fails.
 func (c *CassandraDB) Exec(ctx context.Context, query string, args ...interface{}) error {

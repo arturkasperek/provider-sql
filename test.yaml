@@ -29,8 +29,8 @@ kind: Secret
 metadata:
   name: db-conn
 stringData:
-  username: admin
-  password: pass123
+  username: cassandra
+  password: cassandra
   endpoint: localhost
   port: "9042"
 ---

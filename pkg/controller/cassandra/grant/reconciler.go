@@ -167,12 +167,13 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 
 	role := *cr.Spec.ForProvider.Role
 	keyspace := *cr.Spec.ForProvider.Keyspace
-	privileges := strings.Join(replaceUnderscoreWithSpace(cr.Spec.ForProvider.Privileges), ", ")
+	privileges := replaceUnderscoreWithSpace(cr.Spec.ForProvider.Privileges)
 
-	query := fmt.Sprintf("GRANT %s ON KEYSPACE %s TO %s", privileges, cassandra.QuoteIdentifier(keyspace), cassandra.QuoteIdentifier(role))
-
-	if err := c.db.Exec(ctx, query); err != nil {
-		return managed.ExternalCreation{}, errors.Wrap(err, errGrantCreate)
+	for _, privilege := range privileges {
+		query := fmt.Sprintf("GRANT %s ON KEYSPACE %s TO %s", privilege, cassandra.QuoteIdentifier(keyspace), cassandra.QuoteIdentifier(role))
+		if err := c.db.Exec(ctx, query); err != nil {
+			return managed.ExternalCreation{}, errors.Wrap(err, errGrantCreate)
+		}
 	}
 
 	return managed.ExternalCreation{}, nil
@@ -186,12 +187,13 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 
 	role := *cr.Spec.ForProvider.Role
 	keyspace := *cr.Spec.ForProvider.Keyspace
-	privileges := strings.Join(replaceUnderscoreWithSpace(cr.Spec.ForProvider.Privileges), ", ")
+	privileges := replaceUnderscoreWithSpace(cr.Spec.ForProvider.Privileges)
 
-	query := fmt.Sprintf("GRANT %s ON KEYSPACE %s TO %s", privileges, cassandra.QuoteIdentifier(keyspace), cassandra.QuoteIdentifier(role))
-
-	if err := c.db.Exec(ctx, query); err != nil {
-		return managed.ExternalUpdate{}, errors.Wrap(err, errGrantCreate)
+	for _, privilege := range privileges {
+		query := fmt.Sprintf("GRANT %s ON KEYSPACE %s TO %s", privilege, cassandra.QuoteIdentifier(keyspace), cassandra.QuoteIdentifier(role))
+		if err := c.db.Exec(ctx, query); err != nil {
+			return managed.ExternalUpdate{}, errors.Wrap(err, errGrantCreate)
+		}
 	}
 
 	return managed.ExternalUpdate{}, nil
@@ -205,12 +207,13 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
 
 	role := *cr.Spec.ForProvider.Role
 	keyspace := *cr.Spec.ForProvider.Keyspace
-	privileges := strings.Join(replaceUnderscoreWithSpace(cr.Spec.ForProvider.Privileges), ", ")
+	privileges := replaceUnderscoreWithSpace(cr.Spec.ForProvider.Privileges)
 
-	query := fmt.Sprintf("REVOKE %s ON KEYSPACE %s FROM %s", privileges, cassandra.QuoteIdentifier(keyspace), cassandra.QuoteIdentifier(role))
-
-	if err := c.db.Exec(ctx, query); err != nil {
-		return errors.Wrap(err, errGrantDelete)
+	for _, privilege := range privileges {
+		query := fmt.Sprintf("REVOKE %s ON KEYSPACE %s FROM %s", privilege, cassandra.QuoteIdentifier(keyspace), cassandra.QuoteIdentifier(role))
+		if err := c.db.Exec(ctx, query); err != nil {
+			return errors.Wrap(err, errGrantDelete)
+		}
 	}
 
 	return nil

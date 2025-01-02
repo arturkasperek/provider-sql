@@ -61,7 +61,7 @@ func New(creds map[string][]byte, keyspace string) *CassandraDB {
 		cluster.Keyspace = keyspace
 	}
 
-	cluster.Consistency = gocql.Quorum
+	cluster.Consistency = gocql.All
 	session, _ := cluster.CreateSession()
 
 	return &CassandraDB{
